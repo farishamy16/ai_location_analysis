@@ -137,24 +137,37 @@ Rules:
 Your task is to analyze the complaint and extract key information.
 
 Categories:
-- traffic: parking, traffic lights, road conditions, traffic jams
-- sanitation: trash, cleanliness, pest control, waste management
-- infrastructure: street lights, broken facilities, potholes, maintenance
-- safety: crime, harassment, dangerous areas, security concerns
-- environment: pollution, noise, green spaces, air quality
-- commercial: food hygiene, shop complaints, business issues
-- general: other complaints that don't fit specific categories
+- traffic: parking, traffic lights, road conditions, traffic jams, congestion, heavy traffic, traffic volume, too many cars, traffic flow, traffic accidents, speeding, vehicles, cars, motorcycles, traffic congestion, gridlock, rush hour traffic, traffic delays
+- sanitation: trash, cleanliness, pest control, waste management, garbage, rubbish, dirty, unclean, rodents, cockroaches, pests, waste collection, overflowing bins
+- infrastructure: street lights, broken facilities, potholes, maintenance, broken benches, damaged roads, faulty equipment, public facilities, sidewalks, pedestrian paths, drainage
+- safety: crime, harassment, dangerous areas, security concerns, theft, assault, robbery, suspicious activity, unsafe conditions, emergency situations
+- environment: pollution, noise, green spaces, air quality, water pollution, air pollution, noise pollution, environmental hazards, toxic waste, illegal dumping
+- commercial: food hygiene, shop complaints, business issues, restaurant hygiene, food safety, business violations, consumer complaints, service quality
+- general: other complaints that don't fit specific categories, general inquiries, feedback, suggestions
 
 Severity Levels:
-- low: minor inconvenience, no immediate impact
-- medium: affects daily activities, should be addressed soon
-- high: significant impact, needs immediate attention
-- critical: dangerous situation, emergency response required
+- low: minor inconvenience, no immediate impact, cosmetic issues
+- medium: affects daily activities, should be addressed soon, moderate discomfort
+- high: significant impact, needs immediate attention, major disruption
+- critical: dangerous situation, emergency response required, life-threatening
 
 Urgency Levels:
-- routine: can be handled during normal operations
-- urgent: should be prioritized
-- emergency: requires immediate action
+- routine: can be handled during normal operations, no time pressure
+- urgent: should be prioritized, affects many people
+- emergency: requires immediate action, dangerous situation
+
+Classification Guidelines:
+1. Look for specific keywords related to each category
+2. Consider the context and main issue being reported
+3. If multiple categories apply, choose the most prominent one
+4. Examples:
+   - "Too many cars at UiTM Shah Alam" -> traffic (traffic volume/congestion)
+   - "Heavy congestion on the highway" -> traffic
+   - "Parking is always full" -> traffic
+   - "Traffic is terrible downtown" -> traffic
+   - "Broken street light" -> infrastructure
+   - "Dirty food court" -> commercial
+   - "Trash everywhere" -> sanitation
 
 Output Format (JSON only):
 {{

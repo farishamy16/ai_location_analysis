@@ -267,10 +267,7 @@ AI Complaint System
             # Check if email sending is enabled
             if not self.smtp_server or not self.smtp_username or not self.smtp_password:
                 # Log that email would be sent (for testing without SMTP)
-                print(f"\n📧 [EMAIL NOT SENT - SMTP NOT CONFIGURED]")
-                print(f"   To: {to_email}")
-                print(f"   Subject: {subject}")
-                print(f"   Body:\n{body}\n")
+                print(f"📧 Email queued for {to_email} (SMTP not configured)")
                 return True
             
             # Send email

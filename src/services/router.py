@@ -76,8 +76,50 @@ class ComplaintRouter:
         if classification is None:
             classification = self.llm_service.classify_complaint(complaint)
         
-        # Get department based on category
+        # Keyword-based fallback to improve classification accuracy
+        # This acts as a safety net when LLM classification might be ambiguous
         category = classification.get('category', 'general')
+        
+        # Define keyword mappings for each category
+        keyword_mappings = {
+            'traffic': [
+                'cars', 'traffic', 'congestion', 'parking', 'jam', 'road', 'vehicle', 
+                'highway', 'speeding', 'accident', 'motorcycle', 'gridlock', 'rush hour',
+                'traffic volume', 'heavy traffic', 'too many cars', 'traffic flow'
+            ],
+            'sanitation': [
+                'trash', 'garbage', 'rubbish', 'dirty', 'cleanliness', 'pest', 'rodent',
+                'cockroach', 'waste', 'bin', 'overflowing', 'unclean', 'filthy'
+            ],
+            'infrastructure': [
+                'street light', 'broken', 'pothole', 'facility', 'maintenance', 'sidewalk',
+                'pedestrian', 'drainage', 'damaged', 'faulty', 'equipment', 'bench'
+            ],
+            'safety': [
+                'crime', 'harassment', 'dangerous', 'security', 'theft', 'assault',
+                'robbery', 'suspicious', 'unsafe', 'emergency'
+            ],
+            'environment': [
+                'pollution', 'noise', 'air quality', 'water pollution', 'toxic', 'dumping',
+                'environmental', 'hazard', 'green space'
+            ],
+            'commercial': [
+                'food hygiene', 'restaurant', 'shop', 'business', 'service', 'consumer',
+                'food safety', 'violation'
+            ]
+        }
+        
+        # Check if the complaint should be reclassified based on keywords
+        complaint_lower = complaint.lower()
+        if category == 'general':
+            # Check each category's keywords
+            for mapped_category, keywords in keyword_mappings.items():
+                if any(keyword in complaint_lower for keyword in keywords):
+                    classification['category'] = mapped_category
+                    category = mapped_category
+                    break
+        
+        # Get department based on category
         department = self.department_registry.get_department_by_category(category)
         
         # Fallback to general department if no department found
