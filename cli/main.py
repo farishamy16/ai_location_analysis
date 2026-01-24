@@ -1,10 +1,12 @@
 """
 CLI interface for the Complaint Location Analyzer.
-Provides interactive and test modes for analyzing complaints.
+Provides interactive, test, and submission modes for analyzing and routing complaints.
 """
 
 import sys
 from src.analyzers.complaint import ComplaintAnalyzer
+from src.services.router import ComplaintRouter
+from src.services.notifier import NotificationService
 from src.config.settings import settings
 
 
@@ -17,6 +19,33 @@ def display_location_details(location_data: dict) -> None:
     print(f"Formatted Address: {location_data.get('formatted_address', 'N/A')}")
     print(f"Latitude: {location_data.get('lat', 'N/A')}")
     print(f"Longitude: {location_data.get('lng', 'N/A')}")
+    print("=" * 60)
+
+
+def display_routing_result(routing_data: dict) -> None:
+    """Display routing result in a formatted way."""
+    print("\n" + "=" * 60)
+    print("🎫 Routing Result")
+    print("=" * 60)
+    print(f"Ticket ID: {routing_data['ticket_id']}")
+    print(f"Department: {routing_data['department']['name']}")
+    print(f"Priority: {routing_data['priority'].upper()}")
+    print(f"Expected Response: {routing_data['estimated_response_hours']} hours")
+    print(f"Contact Email: {routing_data['department']['email']}")
+    print(f"Contact Phone: {routing_data['department']['phone']}")
+    print("=" * 60)
+
+
+def display_classification_result(classification: dict) -> None:
+    """Display classification result in a formatted way."""
+    print("\n" + "=" * 60)
+    print("🔍 Classification Result")
+    print("=" * 60)
+    print(f"Category: {classification['category'].title()}")
+    print(f"Severity: {classification['severity'].title()}")
+    print(f"Urgency: {classification['urgency'].title()}")
+    print(f"Summary: {classification['summary']}")
+    print(f"Keywords: {', '.join(classification.get('keywords', ['N/A']))}")
     print("=" * 60)
 
 
@@ -104,6 +133,120 @@ def test_mode(analyzer: ComplaintAnalyzer) -> None:
         input("\nPress Enter to continue to next test case...")
 
 
+def submit_complaint_mode(analyzer: ComplaintAnalyzer, router: ComplaintRouter, notifier: NotificationService) -> None:
+    """
+    Submit a new complaint with full routing and notification.
+    
+    Args:
+        analyzer: The ComplaintAnalyzer instance to use
+        router: The ComplaintRouter instance to use
+        notifier: The NotificationService instance to use
+    """
+    print("\n" + "=" * 60)
+    print("📝 Submit New Complaint")
+    print("=" * 60)
+    
+    # Get complaint text
+    complaint = input("\nDescribe your complaint: ").strip()
+    if not complaint:
+        print("⚠️  Complaint cannot be empty.")
+        return
+    
+    # Get user information (optional)
+    print("\nOptional: Provide your contact information for tracking")
+    user_name = input("Your name (optional, press Enter to skip): ").strip() or None
+    user_email = input("Your email (optional, press Enter to skip): ").strip() or None
+    user_phone = input("Your phone (optional, press Enter to skip): ").strip() or None
+    
+    user_info = {}
+    if user_name:
+        user_info['name'] = user_name
+    if user_email:
+        user_info['email'] = user_email
+    if user_phone:
+        user_info['phone'] = user_phone
+    
+    print("\n" + "=" * 60)
+    print("📋 Complaint Analysis")
+    print("=" * 60)
+    print(f"Complaint: {complaint}\n")
+    
+    # Step 1: Extract place name and geocode
+    print("🤖 Step 1: Extracting place name and geocoding...")
+    location_data = analyzer.analyze_complaint(complaint)
+    
+    if not location_data:
+        print("⚠️  No location found. Proceeding without location data.")
+        location_data = {}
+    else:
+        print(f"✅ Location: {location_data.get('place_name', 'N/A')}")
+        print(f"   Address: {location_data.get('formatted_address', 'N/A')}")
+    
+    # Step 2: Classify complaint
+    print("\n🔍 Step 2: Classifying complaint...")
+    classification = router.llm_service.classify_complaint(complaint)
+    display_classification_result(classification)
+    
+    # Step 3: Route complaint
+    print("\n🧭 Step 3: Routing complaint to department...")
+    routing_result = router.route_complaint(
+        complaint=complaint,
+        location_data=location_data,
+        user_info=user_info,
+        classification=classification
+    )
+    display_routing_result(routing_result)
+    
+    # Step 4: Send notifications
+    print("\n📧 Step 4: Sending notifications...")
+    
+    # Send to department
+    department_sent = notifier.send_department_notification(
+        routing_result['department']['email'],
+        {
+            'ticket_id': routing_result['ticket_id'],
+            'department': routing_result['department'],
+            'priority': routing_result['priority'],
+            'estimated_response_hours': routing_result['estimated_response_hours'],
+            'classification': routing_result['classification'],
+            'location': routing_result['location'],
+            'user_info': routing_result['user_info'],
+            'routed_at': routing_result['routed_at']
+        }
+    )
+    
+    # Send confirmation to user if email provided
+    if user_email:
+        user_sent = notifier.send_user_confirmation(
+            user_email,
+            {
+                'ticket_id': routing_result['ticket_id'],
+                'department': routing_result['department'],
+                'priority': routing_result['priority'],
+                'estimated_response_hours': routing_result['estimated_response_hours'],
+                'classification': routing_result['classification'],
+                'location': routing_result['location'],
+                'routed_at': routing_result['routed_at']
+            }
+        )
+    else:
+        user_sent = False
+    
+    # Final summary
+    print("\n" + "=" * 60)
+    print("✅ Complaint Submitted Successfully!")
+    print("=" * 60)
+    print(f"🎫 Ticket ID: {routing_result['ticket_id']}")
+    print(f"🏢 Department: {routing_result['department']['name']}")
+    print(f"📧 Department notified: {'Yes' if department_sent else 'No (SMTP not configured)'}")
+    if user_email:
+        print(f"📧 Confirmation sent to user: {'Yes' if user_sent else 'No (SMTP not configured)'}")
+    print(f"⏱️  Expected response time: {routing_result['estimated_response_hours']} hours")
+    print("\n" + "=" * 60)
+    print("Thank you for your feedback!")
+    print("=" * 60)
+
+
 def main() -> None:
     """Main entry point for the CLI application."""
     try:
@@ -118,18 +261,23 @@ def main() -> None:
         print("- DISTANCEMATRIX_API_KEY")
         sys.exit(1)
     
-    # Create analyzer instance
+    # Create service instances
     analyzer = ComplaintAnalyzer()
+    router = ComplaintRouter()
+    notifier = NotificationService()
     
     # Ask user for mode
     print("\nSelect mode:")
     print("1. Interactive mode (enter your own complaints)")
     print("2. Test mode (run predefined test cases)")
+    print("3. Submit complaint (with routing and email notifications)")
     
-    choice = input("\nEnter choice (1 or 2): ").strip()
+    choice = input("\nEnter choice (1, 2, or 3): ").strip()
     
     if choice == "2":
         test_mode(analyzer)
+    elif choice == "3":
+        submit_complaint_mode(analyzer, router, notifier)
     else:
         interactive_mode(analyzer)
 

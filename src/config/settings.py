@@ -50,6 +50,43 @@ class Settings:
     def distancematrix_geocode_url(self) -> str:
         """URL for Distance Matrix geocoding API."""
         return os.getenv("DISTANCEMATRIX_GEOCODE_URL", "https://api-v2.distancematrix.ai/maps/api/geocode/json")
+    
+    # Email Settings
+    @property
+    def smtp_server(self) -> Optional[str]:
+        """SMTP server address for sending emails."""
+        return os.getenv("SMTP_SERVER")
+    
+    @property
+    def smtp_port(self) -> int:
+        """SMTP server port."""
+        return int(os.getenv("SMTP_PORT", "587"))
+    
+    @property
+    def smtp_username(self) -> Optional[str]:
+        """SMTP username for authentication."""
+        return os.getenv("SMTP_USERNAME")
+    
+    @property
+    def smtp_password(self) -> Optional[str]:
+        """SMTP password for authentication."""
+        return os.getenv("SMTP_PASSWORD")
+    
+    @property
+    def from_email(self) -> str:
+        """From email address for outgoing emails."""
+        return os.getenv("FROM_EMAIL", "complaints@yourapp.com")
+    
+    @property
+    def from_name(self) -> str:
+        """From name for outgoing emails."""
+        return os.getenv("FROM_NAME", "AI Complaint System")
+    
+    # Database Settings
+    @property
+    def database_url(self) -> str:
+        """Database connection URL."""
+        return os.getenv("DATABASE_URL", "sqlite:///complaints.db")
 
 
 # Global settings instance

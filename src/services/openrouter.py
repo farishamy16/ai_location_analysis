@@ -3,7 +3,8 @@ OpenRouter LLM service for AI-powered text processing.
 Provides a clean interface to the OpenRouter API using LangChain.
 """
 
-from typing import Optional, Dict, Any
+import json
+from typing import Optional, Dict, Any, List
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.prompts import ChatPromptTemplate
@@ -113,6 +114,99 @@ Rules:
             return place_name
         except Exception as e:
             raise RuntimeError(f"Error extracting place name: {e}") from e
+    
+    def classify_complaint(self, complaint: str) -> Dict[str, Any]:
+        """
+        Use LLM to classify a complaint into category, severity, and urgency.
+        
+        Args:
+            complaint: The user's complaint text
+            
+        Returns:
+            Dictionary with classification results:
+            {
+                'category': str,           # Main category (traffic, sanitation, etc.)
+                'severity': str,           # Severity level (low, medium, high, critical)
+                'urgency': str,            # Urgency level (routine, urgent, emergency)
+                'keywords': List[str],     # Key terms extracted
+                'summary': str             # Brief summary of the complaint
+            }
+        """
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a helpful assistant that classifies user complaints.
+Your task is to analyze the complaint and extract key information.
+
+Categories:
+- traffic: parking, traffic lights, road conditions, traffic jams
+- sanitation: trash, cleanliness, pest control, waste management
+- infrastructure: street lights, broken facilities, potholes, maintenance
+- safety: crime, harassment, dangerous areas, security concerns
+- environment: pollution, noise, green spaces, air quality
+- commercial: food hygiene, shop complaints, business issues
+- general: other complaints that don't fit specific categories
+
+Severity Levels:
+- low: minor inconvenience, no immediate impact
+- medium: affects daily activities, should be addressed soon
+- high: significant impact, needs immediate attention
+- critical: dangerous situation, emergency response required
+
+Urgency Levels:
+- routine: can be handled during normal operations
+- urgent: should be prioritized
+- emergency: requires immediate action
+
+Output Format (JSON only):
+{{
+    "category": "category_name",
+    "severity": "severity_level",
+    "urgency": "urgency_level",
+    "keywords": ["keyword1", "keyword2"],
+    "summary": "Brief summary of the complaint"
+}}"""),
+            ("human", "Complaint: {complaint}\n\nClassification:")
+        ])
+        
+        chain = self.create_chain(prompt)
+        
+        try:
+            result = chain.invoke({"complaint": complaint}).strip()
+            
+            # Parse JSON response
+            classification = json.loads(result)
+            
+            # Validate and normalize the response
+            valid_categories = ['traffic', 'sanitation', 'infrastructure', 'safety', 'environment', 'commercial', 'general']
+            valid_severity = ['low', 'medium', 'high', 'critical']
+            valid_urgency = ['routine', 'urgent', 'emergency']
+            
+            classification['category'] = classification.get('category', 'general').lower()
+            if classification['category'] not in valid_categories:
+                classification['category'] = 'general'
+            
+            classification['severity'] = classification.get('severity', 'medium').lower()
+            if classification['severity'] not in valid_severity:
+                classification['severity'] = 'medium'
+            
+            classification['urgency'] = classification.get('urgency', 'routine').lower()
+            if classification['urgency'] not in valid_urgency:
+                classification['urgency'] = 'routine'
+            
+            classification['keywords'] = classification.get('keywords', [])
+            classification['summary'] = classification.get('summary', complaint[:100])
+            
+            return classification
+        except json.JSONDecodeError as e:
+            # Fallback to basic classification if JSON parsing fails
+            return {
+                'category': 'general',
+                'severity': 'medium',
+                'urgency': 'routine',
+                'keywords': [],
+                'summary': complaint[:100]
+            }
+        except Exception as e:
+            raise RuntimeError(f"Error classifying complaint: {e}") from e
 
 
 # Create a default service instance for convenience
