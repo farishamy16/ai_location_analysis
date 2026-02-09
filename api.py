@@ -42,7 +42,6 @@ class LocationData(BaseModel):
     formatted_address: Optional[str] = Field(None, description="Formatted address")
     lat: Optional[float] = Field(None, description="Latitude coordinate")
     lng: Optional[float] = Field(None, description="Longitude coordinate")
-    raw: Optional[Dict[str, Any]] = Field(None, description="Raw geocoding data")
 
 
 class DepartmentInfo(BaseModel):
@@ -76,7 +75,6 @@ class RoutingResult(BaseModel):
     priority: str
     estimated_response_hours: int
     classification: ClassificationData
-    location: Dict[str, Any]
     user_info: Dict[str, Any]
     routed_at: str
 
@@ -176,6 +174,8 @@ async def submit_complaint(request: ComplaintRequest):
         try:
             location_data_dict = analyzer.analyze_complaint(request.complaint)
             if location_data_dict:
+                # Remove raw data to reduce response size
+                location_data_dict.pop('raw', None)
                 location_data = LocationData(**location_data_dict)
         except Exception as e:
             # Continue without location data if extraction fails
@@ -198,6 +198,8 @@ async def submit_complaint(request: ComplaintRequest):
                 location_data=location_data_dict,
                 user_info=user_info_dict
             )
+            # Remove location from routing result to avoid duplication
+            routing_result_dict.pop('location', None)
             routing_result = RoutingResult(**routing_result_dict)
         except Exception as e:
             raise HTTPException(
@@ -215,7 +217,7 @@ async def submit_complaint(request: ComplaintRequest):
                     'priority': routing_result_dict['priority'],
                     'estimated_response_hours': routing_result_dict['estimated_response_hours'],
                     'classification': routing_result_dict['classification'],
-                    'location': routing_result_dict['location'],
+                    'location': location_data_dict,
                     'user_info': routing_result_dict['user_info'],
                     'routed_at': routing_result_dict['routed_at']
                 }
@@ -233,7 +235,7 @@ async def submit_complaint(request: ComplaintRequest):
                             'priority': routing_result_dict['priority'],
                             'estimated_response_hours': routing_result_dict['estimated_response_hours'],
                             'classification': routing_result_dict['classification'],
-                            'location': routing_result_dict['location'],
+                            'location': location_data_dict,
                             'routed_at': routing_result_dict['routed_at']
                         }
                     )
