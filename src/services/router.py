@@ -9,6 +9,8 @@ import uuid
 
 from src.services.department_registry import DepartmentRegistry
 from src.services.openrouter import OpenRouterService
+from src.services.semantic_matcher import SemanticMatcher, SemanticMatchResult
+from src.config.settings import settings
 
 
 class ComplaintRouter:
@@ -18,6 +20,7 @@ class ComplaintRouter:
         self,
         department_registry: Optional[DepartmentRegistry] = None,
         llm_service: Optional[OpenRouterService] = None,
+        semantic_matcher: Optional[SemanticMatcher] = None,
     ):
         """
         Initialize the complaint router.
@@ -25,9 +28,11 @@ class ComplaintRouter:
         Args:
             department_registry: Optional department registry. If not provided, uses default.
             llm_service: Optional LLM service. If not provided, uses default.
+            semantic_matcher: Optional semantic matcher. If not provided, uses default.
         """
         self.department_registry = department_registry or DepartmentRegistry()
         self.llm_service = llm_service or OpenRouterService()
+        self.semantic_matcher = semantic_matcher or SemanticMatcher()
     
     def generate_ticket_id(self) -> str:
         """
@@ -39,6 +44,76 @@ class ComplaintRouter:
         date_str = datetime.now().strftime("%Y%m%d")
         random_str = str(uuid.uuid4())[:5].upper()
         return f"CMP-{date_str}-{random_str}"
+    
+    def _multi_stage_classify(self, complaint: str) -> Dict[str, Any]:
+        """
+        Perform multi-stage classification using LLM and semantic matching.
+        
+        Args:
+            complaint: The complaint text
+            
+        Returns:
+            Classification dictionary with category and metadata
+        """
+        # Stage 1: LLM Classification with confidence scoring
+        llm_classification = self.llm_service.classify_complaint(complaint)
+        llm_confidence = llm_classification.get('confidence', 0.5)
+        
+        # Check if LLM confidence is high enough
+        if llm_confidence >= settings.high_confidence_threshold:
+            # High confidence - use LLM classification
+            return {
+                **llm_classification,
+                'classification_method': 'llm',
+                'classification_confidence': llm_confidence
+            }
+        
+        # Stage 2: Semantic similarity matching
+        if settings.enable_semantic_matching:
+            semantic_result = self.semantic_matcher.find_best_match(complaint)
+            
+            # Check if semantic similarity is high enough
+            if semantic_result.similarity >= settings.high_confidence_threshold:
+                # High semantic similarity - use semantic match
+                return {
+                    'category': semantic_result.category,
+                    'severity': llm_classification.get('severity', 'medium'),
+                    'urgency': llm_classification.get('urgency', 'routine'),
+                    'keywords': semantic_result.matched_keywords,
+                    'summary': llm_classification.get('summary', complaint[:100]),
+                    'confidence': semantic_result.similarity,
+                    'classification_method': 'semantic',
+                    'classification_confidence': semantic_result.similarity,
+                    'all_scores': semantic_result.all_scores
+                }
+        
+        # Stage 3: Hybrid approach - combine LLM and semantic
+        if settings.enable_semantic_matching:
+            semantic_result = self.semantic_matcher.find_best_match(complaint)
+            
+            # If semantic similarity is at least medium, use it
+            if semantic_result.similarity >= settings.medium_confidence_threshold:
+                # Use semantic match but keep LLM severity/urgency
+                return {
+                    'category': semantic_result.category,
+                    'severity': llm_classification.get('severity', 'medium'),
+                    'urgency': llm_classification.get('urgency', 'routine'),
+                    'keywords': semantic_result.matched_keywords,
+                    'summary': llm_classification.get('summary', complaint[:100]),
+                    'confidence': max(llm_confidence, semantic_result.similarity),
+                    'classification_method': 'hybrid',
+                    'classification_confidence': max(llm_confidence, semantic_result.similarity),
+                    'llm_category': llm_classification.get('category'),
+                    'semantic_category': semantic_result.category,
+                    'all_scores': semantic_result.all_scores
+                }
+        
+        # Stage 4: Fallback to LLM classification with lower confidence
+        return {
+            **llm_classification,
+            'classification_method': 'llm_fallback',
+            'classification_confidence': llm_confidence
+        }
     
     def route_complaint(
         self,
@@ -72,52 +147,12 @@ class ComplaintRouter:
         # Generate ticket ID
         ticket_id = self.generate_ticket_id()
         
-        # Classify complaint if not provided
+        # Classify complaint using multi-stage approach if not provided
         if classification is None:
-            classification = self.llm_service.classify_complaint(complaint)
+            classification = self._multi_stage_classify(complaint)
         
-        # Keyword-based fallback to improve classification accuracy
-        # This acts as a safety net when LLM classification might be ambiguous
+        # Get category from classification
         category = classification.get('category', 'general')
-        
-        # Define keyword mappings for each category
-        keyword_mappings = {
-            'traffic': [
-                'cars', 'traffic', 'congestion', 'parking', 'jam', 'road', 'vehicle', 
-                'highway', 'speeding', 'accident', 'motorcycle', 'gridlock', 'rush hour',
-                'traffic volume', 'heavy traffic', 'too many cars', 'traffic flow'
-            ],
-            'sanitation': [
-                'trash', 'garbage', 'rubbish', 'dirty', 'cleanliness', 'pest', 'rodent',
-                'cockroach', 'waste', 'bin', 'overflowing', 'unclean', 'filthy'
-            ],
-            'infrastructure': [
-                'street light', 'broken', 'pothole', 'facility', 'maintenance', 'sidewalk',
-                'pedestrian', 'drainage', 'damaged', 'faulty', 'equipment', 'bench'
-            ],
-            'safety': [
-                'crime', 'harassment', 'dangerous', 'security', 'theft', 'assault',
-                'robbery', 'suspicious', 'unsafe', 'emergency'
-            ],
-            'environment': [
-                'pollution', 'noise', 'air quality', 'water pollution', 'toxic', 'dumping',
-                'environmental', 'hazard', 'green space'
-            ],
-            'commercial': [
-                'food hygiene', 'restaurant', 'shop', 'business', 'service', 'consumer',
-                'food safety', 'violation'
-            ]
-        }
-        
-        # Check if the complaint should be reclassified based on keywords
-        complaint_lower = complaint.lower()
-        if category == 'general':
-            # Check each category's keywords
-            for mapped_category, keywords in keyword_mappings.items():
-                if any(keyword in complaint_lower for keyword in keywords):
-                    classification['category'] = mapped_category
-                    category = mapped_category
-                    break
         
         # Get department based on category
         department = self.department_registry.get_department_by_category(category)

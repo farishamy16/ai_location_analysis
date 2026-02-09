@@ -42,6 +42,14 @@ class OpenRouterService:
             base_url=self.base_url,
             temperature=self.temperature,
         )
+        
+        # Create a separate LLM instance for classification with lower temperature
+        self.classification_llm = ChatOpenAI(
+            model=self.model,
+            api_key=self.api_key, # type: ignore
+            base_url=self.base_url,
+            temperature=settings.classification_temperature,
+        )
     
     def invoke(self, messages: list) -> str:
         """
@@ -129,7 +137,8 @@ Rules:
                 'severity': str,           # Severity level (low, medium, high, critical)
                 'urgency': str,            # Urgency level (routine, urgent, emergency)
                 'keywords': List[str],     # Key terms extracted
-                'summary': str             # Brief summary of the complaint
+                'summary': str,            # Brief summary of the complaint
+                'confidence': float        # Confidence score (0.0 to 1.0)
             }
         """
         prompt = ChatPromptTemplate.from_messages([
@@ -169,18 +178,27 @@ Classification Guidelines:
    - "Dirty food court" -> commercial
    - "Trash everywhere" -> sanitation
 
+Confidence Scoring:
+- 0.9-1.0: Very confident - clear category match, strong keywords present
+- 0.7-0.9: Confident - good category match, some keywords present
+- 0.5-0.7: Moderately confident - category fits but keywords are weak or ambiguous
+- 0.3-0.5: Low confidence - category is a guess, multiple categories could apply
+- 0.0-0.3: Very low confidence - unclear complaint, general inquiry, or ambiguous
+
 Output Format (JSON only):
 {{
     "category": "category_name",
     "severity": "severity_level",
     "urgency": "urgency_level",
     "keywords": ["keyword1", "keyword2"],
-    "summary": "Brief summary of the complaint"
+    "summary": "Brief summary of the complaint",
+    "confidence": 0.85
 }}"""),
             ("human", "Complaint: {complaint}\n\nClassification:")
         ])
         
-        chain = self.create_chain(prompt)
+        # Use classification chain with lower temperature
+        chain = prompt | self.classification_llm | StrOutputParser()
         
         try:
             result = chain.invoke({"complaint": complaint}).strip()
@@ -208,6 +226,11 @@ Output Format (JSON only):
             classification['keywords'] = classification.get('keywords', [])
             classification['summary'] = classification.get('summary', complaint[:100])
             
+            # Add confidence score (default to 0.5 if not provided)
+            classification['confidence'] = float(classification.get('confidence', 0.5))
+            # Ensure confidence is within valid range
+            classification['confidence'] = max(0.0, min(1.0, classification['confidence']))
+            
             return classification
         except json.JSONDecodeError as e:
             # Fallback to basic classification if JSON parsing fails
@@ -216,7 +239,8 @@ Output Format (JSON only):
                 'severity': 'medium',
                 'urgency': 'routine',
                 'keywords': [],
-                'summary': complaint[:100]
+                'summary': complaint[:100],
+                'confidence': 0.2
             }
         except Exception as e:
             raise RuntimeError(f"Error classifying complaint: {e}") from e

@@ -47,6 +47,26 @@ class Settings:
         return float(os.getenv("OPENROUTER_TEMPERATURE", "0.7"))
     
     @property
+    def classification_temperature(self) -> float:
+        """Temperature for complaint classification (lower for consistency)."""
+        return float(os.getenv("CLASSIFICATION_TEMPERATURE", "0.1"))
+    
+    @property
+    def high_confidence_threshold(self) -> float:
+        """Threshold for high confidence classification."""
+        return float(os.getenv("HIGH_CONFIDENCE_THRESHOLD", "0.8"))
+    
+    @property
+    def medium_confidence_threshold(self) -> float:
+        """Threshold for medium confidence classification."""
+        return float(os.getenv("MEDIUM_CONFIDENCE_THRESHOLD", "0.6"))
+    
+    @property
+    def enable_semantic_matching(self) -> bool:
+        """Enable semantic similarity matching for classification."""
+        return os.getenv("ENABLE_SEMANTIC_MATCHING", "true").lower() == "true"
+    
+    @property
     def distancematrix_geocode_url(self) -> str:
         """URL for Distance Matrix geocoding API."""
         return os.getenv("DISTANCEMATRIX_GEOCODE_URL", "https://api-v2.distancematrix.ai/maps/api/geocode/json")
