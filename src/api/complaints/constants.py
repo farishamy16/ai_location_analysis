@@ -1,0 +1,48 @@
+"""Constants and error codes for the complaints domain."""
+
+# Severity levels
+SEVERITY_LOW = "low"
+SEVERITY_MEDIUM = "medium"
+SEVERITY_HIGH = "high"
+SEVERITY_CRITICAL = "critical"
+
+SEVERITY_LEVELS = [SEVERITY_LOW, SEVERITY_MEDIUM, SEVERITY_HIGH, SEVERITY_CRITICAL]
+
+# Urgency levels
+URGENCY_LOW = "low"
+URGENCY_MEDIUM = "medium"
+URGENCY_HIGH = "high"
+URGENCY_URGENT = "urgent"
+
+URGENCY_LEVELS = [URGENCY_LOW, URGENCY_MEDIUM, URGENCY_HIGH, URGENCY_URGENT]
+
+# Priority levels
+PRIORITY_LOW = "low"
+PRIORITY_MEDIUM = "medium"
+PRIORITY_HIGH = "high"
+PRIORITY_URGENT = "urgent"
+
+PRIORITY_LEVELS = [PRIORITY_LOW, PRIORITY_MEDIUM, PRIORITY_HIGH, PRIORITY_URGENT]
+
+# Classification methods
+CLASSIFICATION_METHOD_LLM = "llm"
+CLASSIFICATION_METHOD_SEMANTIC = "semantic"
+CLASSIFICATION_METHOD_HYBRID = "hybrid"
+
+CLASSIFICATION_METHODS = [
+    CLASSIFICATION_METHOD_LLM,
+    CLASSIFICATION_METHOD_SEMANTIC,
+    CLASSIFICATION_METHOD_HYBRID,
+]
+
+# Error messages
+ERROR_ROUTING_FAILED = "Routing failed"
+ERROR_LOCATION_EXTRACTION_FAILED = "Location extraction failed"
+ERROR_NOTIFICATION_FAILED = "Notification failed"
+ERROR_INTERNAL_SERVER = "Internal server error"
+
+# Success messages
+SUCCESS_COMPLAINT_PROCESSED = "Complaint processed successfully"
+
+# API tags
+TAG_COMPLAINTS = "Complaints"
