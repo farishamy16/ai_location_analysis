@@ -19,17 +19,6 @@ router = APIRouter()
         status.HTTP_200_OK: {"model": RootResponse},
     },
 )
-async def root():
-    """Root endpoint with API information."""
-    return RootResponse(
-        name=constants.API_NAME,
-        version=constants.API_VERSION,
-        status=constants.API_STATUS,
-        endpoints={
-            "POST /api/complaint": "Submit a complaint and get full analysis",
-            "GET /health": "Health check endpoint"
-        }
-    )
 
 
 @router.get(
