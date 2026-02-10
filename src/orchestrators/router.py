@@ -1,6 +1,8 @@
 """
 Complaint Router Service
 Intelligently routes complaints to appropriate departments based on analysis.
+
+Combines LLM + Semantic + Registry to route complaints to departments
 """
 
 from typing import Dict, Any, Optional

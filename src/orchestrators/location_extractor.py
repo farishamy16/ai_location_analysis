@@ -1,7 +1,9 @@
 """
-Complaint Location Analyzer - Business Logic
+Location Extractor Service
 Combines OpenRouter LLM with Distance Matrix API to extract place names from complaints
 and retrieve their coordinates.
+
+Combines LLM + Geocoding to extract location from complaints
 """
 
 from typing import Optional, Dict, Any
@@ -9,8 +11,8 @@ from src.services.openrouter import OpenRouterService, extract_place_name
 from src.services.distancematrix import DistanceMatrixService, geocode_address
 
 
-class ComplaintAnalyzer:
-    """Analyzes complaints to extract location information."""
+class LocationExtractor:
+    """Extracts location information from complaints."""
     
     def __init__(
         self,
@@ -18,7 +20,7 @@ class ComplaintAnalyzer:
         geocoding_service: Optional[DistanceMatrixService] = None,
     ):
         """
-        Initialize the complaint analyzer.
+        Initialize the location extractor.
         
         Args:
             llm_service: Optional LLM service. If not provided, uses default.
@@ -54,9 +56,9 @@ class ComplaintAnalyzer:
         """
         return self.geocoding_service.geocode_address(place_name)
     
-    def analyze_complaint(self, complaint: str) -> Optional[Dict[str, Any]]:
+    def extract_location(self, complaint: str) -> Optional[Dict[str, Any]]:
         """
-        Analyze a complaint to extract the place name and get its coordinates.
+        Extract location information from a complaint (place name + coordinates).
         
         Args:
             complaint: The user's complaint text
@@ -81,13 +83,13 @@ class ComplaintAnalyzer:
             return None
 
 
-# Create a default analyzer instance for convenience
-default_analyzer = ComplaintAnalyzer()
+# Create a default extractor instance for convenience
+default_extractor = LocationExtractor()
 
 
-def analyze_complaint(complaint: str) -> Optional[Dict[str, Any]]:
+def extract_location(complaint: str) -> Optional[Dict[str, Any]]:
     """
-    Convenience function to analyze a complaint using the default analyzer.
+    Convenience function to extract location using the default extractor.
     
     Args:
         complaint: The user's complaint text
@@ -96,4 +98,4 @@ def analyze_complaint(complaint: str) -> Optional[Dict[str, Any]]:
         Dictionary with location data (lat, lng, formatted_address, raw),
         or None if place name extraction or geocoding fails
     """
-    return default_analyzer.analyze_complaint(complaint)
+    return default_extractor.extract_location(complaint)

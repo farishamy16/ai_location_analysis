@@ -8,8 +8,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from src.analyzers.complaint import ComplaintAnalyzer
-from src.services.router import ComplaintRouter
+from src.orchestrators.location_extractor import LocationExtractor
+from src.orchestrators.router import ComplaintRouter
 from src.services.notifier import NotificationService
 from src.config.settings import settings
 
@@ -98,23 +98,23 @@ class ComplaintResponse(BaseModel):
 
 
 # Initialize services (lazy initialization on first request)
-_analyzer: Optional[ComplaintAnalyzer] = None
+_extractor: Optional[LocationExtractor] = None
 _router: Optional[ComplaintRouter] = None
 _notifier: Optional[NotificationService] = None
 
 
 def get_services():
     """Get or initialize services."""
-    global _analyzer, _router, _notifier
+    global _extractor, _router, _notifier
     
-    if _analyzer is None:
-        _analyzer = ComplaintAnalyzer()
+    if _extractor is None:
+        _extractor = LocationExtractor()
     if _router is None:
         _router = ComplaintRouter()
     if _notifier is None:
         _notifier = NotificationService()
     
-    return _analyzer, _router, _notifier
+    return _extractor, _router, _notifier
 
 
 @app.get("/", tags=["Health"])
@@ -163,7 +163,7 @@ async def submit_complaint(request: ComplaintRequest):
     """
     try:
         # Get services
-        analyzer, router, notifier = get_services()
+        extractor, router, notifier = get_services()
         
         # Initialize response variables
         location_data = None
@@ -172,7 +172,7 @@ async def submit_complaint(request: ComplaintRequest):
         
         # Step 1: Extract location from complaint
         try:
-            location_data_dict = analyzer.analyze_complaint(request.complaint)
+            location_data_dict = extractor.extract_location(request.complaint)
             if location_data_dict:
                 # Remove raw data to reduce response size
                 location_data_dict.pop('raw', None)

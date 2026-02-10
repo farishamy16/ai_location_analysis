@@ -4,8 +4,8 @@ Provides interactive, test, and submission modes for analyzing and routing compl
 """
 
 import sys
-from src.analyzers.complaint import ComplaintAnalyzer
-from src.services.router import ComplaintRouter
+from src.orchestrators.location_extractor import LocationExtractor
+from src.orchestrators.router import ComplaintRouter
 from src.services.notifier import NotificationService
 from src.config.settings import settings
 
@@ -69,17 +69,17 @@ def display_classification_result(classification: dict) -> None:
         print(f"{confidence_emoji} Confidence: {confidence_percent}%")
 
 
-def analyze_complaint_cli(complaint: str, analyzer: ComplaintAnalyzer) -> None:
+def analyze_complaint_cli(complaint: str, extractor: LocationExtractor) -> None:
     """
     Analyze a complaint and display results via CLI.
     
     Args:
         complaint: The user's complaint text
-        analyzer: The ComplaintAnalyzer instance to use
+        extractor: The LocationExtractor instance to use
     """
     print(f"\n📋 Analyzing: {complaint}")
     
-    result = analyzer.analyze_complaint(complaint)
+    result = extractor.extract_location(complaint)
     
     if not result:
         print("❌ No location found")
@@ -91,12 +91,12 @@ def analyze_complaint_cli(complaint: str, analyzer: ComplaintAnalyzer) -> None:
         print(f"🌐 Coordinates: {result.get('lat')}, {result.get('lng')}")
 
 
-def interactive_mode(analyzer: ComplaintAnalyzer) -> None:
+def interactive_mode(extractor: LocationExtractor) -> None:
     """
-    Run the analyzer in interactive location analysis mode.
+    Run the extractor in interactive location analysis mode.
     
     Args:
-        analyzer: The ComplaintAnalyzer instance to use
+        extractor: The LocationExtractor instance to use
     """
     print("\n🏢 Interactive Location Analysis (type 'quit' to exit)")
     
@@ -111,15 +111,15 @@ def interactive_mode(analyzer: ComplaintAnalyzer) -> None:
             print("⚠️  Please enter a complaint.")
             continue
         
-        analyze_complaint_cli(complaint, analyzer)
+        analyze_complaint_cli(complaint, extractor)
 
 
-def test_mode(analyzer: ComplaintAnalyzer) -> None:
+def test_mode(extractor: LocationExtractor) -> None:
     """
     Run location analysis tests with predefined complaints.
     
     Args:
-        analyzer: The ComplaintAnalyzer instance to use
+        extractor: The LocationExtractor instance to use
     """
     print("\n🧪 Location Analysis Tests")
     
@@ -127,7 +127,7 @@ def test_mode(analyzer: ComplaintAnalyzer) -> None:
         print(f"\n{'─' * 40}")
         print(f"Test {i}/{len(LOCATION_TEST_COMPLAINTS)}")
         print(f"{'─' * 40}")
-        analyze_complaint_cli(complaint, analyzer)
+        analyze_complaint_cli(complaint, extractor)
         input("\nPress Enter to continue...")
 
 
@@ -158,12 +158,12 @@ def routing_test_mode(router: ComplaintRouter) -> None:
         input("\nPress Enter to continue...")
 
 
-def submit_complaint_mode(analyzer: ComplaintAnalyzer, router: ComplaintRouter, notifier: NotificationService) -> None:
+def submit_complaint_mode(extractor: LocationExtractor, router: ComplaintRouter, notifier: NotificationService) -> None:
     """
     Submit a new complaint with full routing and notification (complete workflow).
     
     Args:
-        analyzer: The ComplaintAnalyzer instance to use
+        extractor: The LocationExtractor instance to use
         router: The ComplaintRouter instance to use
         notifier: The NotificationService instance to use
     """
@@ -193,7 +193,7 @@ def submit_complaint_mode(analyzer: ComplaintAnalyzer, router: ComplaintRouter, 
     print(f"\n📋 Analyzing: {complaint}")
     
     # Extract location
-    location_data = analyzer.analyze_complaint(complaint)
+    location_data = extractor.extract_location(complaint)
     if location_data:
         print(f"✅ Location: {location_data.get('place_name', 'N/A')}")
         print(f"   Address: {location_data.get('formatted_address', 'N/A')}")
@@ -290,23 +290,23 @@ def main() -> None:
     
     # Lazy initialize services based on mode selection
     if choice == "2":
-        # Test mode only needs analyzer
-        analyzer = ComplaintAnalyzer()
-        test_mode(analyzer)
+        # Test mode only needs extractor
+        extractor = LocationExtractor()
+        test_mode(extractor)
     elif choice == "3":
         # Routing test mode only needs router
         router = ComplaintRouter()
         routing_test_mode(router)
     elif choice == "4":
         # Submit mode needs all services
-        analyzer = ComplaintAnalyzer()
+        extractor = LocationExtractor()
         router = ComplaintRouter()
         notifier = NotificationService()
-        submit_complaint_mode(analyzer, router, notifier)
+        submit_complaint_mode(extractor, router, notifier)
     else:
-        # Interactive mode only needs analyzer
-        analyzer = ComplaintAnalyzer()
-        interactive_mode(analyzer)
+        # Interactive mode only needs extractor
+        extractor = LocationExtractor()
+        interactive_mode(extractor)
 
 
 if __name__ == "__main__":
