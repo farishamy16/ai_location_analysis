@@ -5,6 +5,7 @@ from fastapi import FastAPI, status
 
 from src.api.complaints import router as complaints_router
 from src.api.health import router as health_router
+from src.api.geocoding import router as geocoding_router
 
 
 # Initialize FastAPI app
@@ -30,6 +31,7 @@ app.add_exception_handler(Exception, generic_exception_handler)
 # Include routers
 app.include_router(health_router.router, tags=["Health"])
 app.include_router(complaints_router.router, prefix="/api", tags=["Complaints"])
+app.include_router(geocoding_router.router, prefix="/api", tags=["Geocoding"])
 
 
 if __name__ == "__main__":

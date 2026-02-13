@@ -12,3 +12,4 @@ wheels/
 # Kilo Code
 .kilocode
 .env
+.DS_Store
